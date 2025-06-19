@@ -520,7 +520,7 @@ def main():
                 f"{SUPPORT_ID}",
                 photo=PM_START_IMG,               
                 caption=f"""
-𝗛𝗲𝗹𝗹𝗼 𝗜 𝗮𝗺 𝘀𝘁𝗮𝗿𝘁𝗲𝗱 𝘁𝗼 𝗺𝗮𝗻𝗮𝗴𝗲 𝗲𝗱𝗶𝘁𝗲𝗱 𝗺𝗲𝘀𝘀𝗮𝗴𝗲𝘀 ! 𝗜 𝗮𝗺 𝗖𝗿𝗲𝗮𝘁𝗲 𝗯𝘆 @nullcrow""",
+𝗛𝗲𝗹𝗹𝗼 𝗜 𝗮𝗺 𝘀𝘁𝗮𝗿𝘁𝗲𝗱 𝘁𝗼 𝗺𝗮𝗻𝗮𝗴𝗲 𝗲𝗱𝗶𝘁𝗲𝗱 𝗺𝗲𝘀𝘀𝗮𝗴𝗲𝘀 ! 𝗜 𝗮𝗺 𝗖𝗿𝗲𝗮𝘁𝗲 𝗯𝘆 @FOS_FOUNDER""",
                 parse_mode=ParseMode.MARKDOWN,
             )
         except Unauthorized:
