@@ -78,74 +78,6 @@ def help(update: Update, context: CallbackContext):
 
 SUPPORT_LINK = "https://t.me/+D2dATbDtZbNiNGJl"
 
-# --- Helper Functions ---
-async def get_target_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Get the target user by:
-    - Reply (preferred)
-    - User ID (digits)
-    - Username (@username or username)
-    """
-    chat_id = update.effective_chat.id
-    # 1. If reply, return that user
-    if update.message.reply_to_message and update.message.reply_to_message.from_user:
-        return update.message.reply_to_message.from_user
-
-    # 2. If argument is present, try to resolve as user_id or username
-    if context.args and context.args[0]:
-        arg = context.args[0]
-        # Try user ID
-        if arg.isdigit():
-            try:
-                member = await context.bot.get_chat_member(chat_id, int(arg))
-                return member.user
-            except Exception:
-                pass
-        # Try @username or username
-        username = arg
-        if username.startswith("@"):
-            username = username[1:]
-        # Try to get user from chat by username
-        try:
-            members = await context.bot.get_chat_administrators(chat_id)
-            for m in members:
-                if m.user.username and m.user.username.lower() == username.lower():
-                    return m.user
-        except Exception:
-            pass
-        try:
-            member = await context.bot.get_chat_member(chat_id, username)
-            return member.user
-        except Exception:
-            pass
-        # Try to get user from chat admins
-        try:
-            admins = await context.bot.get_chat_administrators(chat_id)
-            for m in admins:
-                if m.user.username and m.user.username.lower() == username.lower():
-                    return m.user
-        except Exception:
-            pass
-        # Try get_chat with @username and username
-        for uname in ("@" + username, username):
-            try:
-                user_obj = await context.bot.get_chat(uname)
-                if user_obj:
-                    return user_obj
-            except Exception:
-                continue
-        # Try get_chat_member with username (rarely works)
-        try:
-            member = await context.bot.get_chat_member(chat_id, username)
-            return member.user
-        except Exception:
-            pass
-
-    await update.message.reply_text(
-        "❌ <b>Couldn't find the user. Please reply or provide a valid user ID/username.</b>",
-        parse_mode="HTML"
-    )
-    return None
 
 def is_admin(member):
     return isinstance(member, ChatMemberAdministrator) or isinstance(member, ChatMemberOwner)
@@ -547,9 +479,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # Start the bot
-
-
-
-
-      
