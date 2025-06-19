@@ -14,12 +14,6 @@ from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from pymongo import MongoClient
 from config import LOGGER, MONGO_URI, DB_NAME, TELEGRAM_TOKEN, OWNER_ID, SUDO_ID, BOT_NAME, SUPPORT_ID, API_ID, API_HASH
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-)
-
 
 app = Client("AutoDelete", bot_token=TELEGRAM_TOKEN, api_id=API_ID, api_hash=API_HASH)
 print("INFO: Starting Autodelete")
@@ -76,114 +70,59 @@ def help(update: Update, context: CallbackContext):
     user = update.effective_user
     mention = f"<a href='tg://user?id={user.id}'>{user.first_name}</a>"
 
-SUPPORT_LINK = "https://t.me/+D2dATbDtZbNiNGJl"
+def start(update: Update, context: CallbackContext):
+    args = context.args
+    uptime = get_readable_time((time.time() - StartTime))
 
-
-def is_admin(member):
-    return isinstance(member, ChatMemberAdministrator) or isinstance(member, ChatMemberOwner)
-CHANNEL_USERNAME = "@federation_of_shadows"
-# --- Command Handlers ---
-async def is_user_in_channel(user_id, bot):
-    try:
-        member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
-        return member.status in ("member", "administrator", "creator")
-    except Exception as e:
-        logging.error(f"Error checking channel membership: {e}")
-        return False
-
-async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    try:
-        is_member = await is_user_in_channel(user.id, context.bot)
-    except Exception as e:
-        logging.error(f"start_handler: channel check failed: {e}")
-        is_member = True  # fallback: allow
-
-    if is_member:
-        bot_me = await context.bot.get_me()
-        processing_msg = await update.message.reply_text(
-            "<b>⏳ Please wait while we process your request...</b>\n"
-            "<i>Step 1: Initializing system modules...</i>",
-            parse_mode="HTML"
-        )
-        await asyncio.sleep(0.8)
-        try:
-            await processing_msg.edit_text(
-                "<b>⏳ Please wait while we process your request...</b>\n"
-                "<i>Step 2: Verifying channel membership...</i>",
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
-        await asyncio.sleep(0.8)
-        try:
-            await processing_msg.edit_text(
-                "<b>⏳ Please wait while we process your request...</b>\n"
-                "<i>Step 3: Preparing your personalized welcome...</i>",
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
-        await asyncio.sleep(0.8)
-        try:
-            await processing_msg.edit_text(
-                "<b>⏳ Please wait while we process your request...</b>\n"
-                "<i>Step 4: Finalizing setup...</i>",
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
-        await asyncio.sleep(0.6)
-        welcome_text = (
-    f"<b>👋 Welcome, {user.mention_html()}!</b>\n"
-    f"<b>━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-    f"<b>🛡 {bot_me.mention_html()} — Edit Guardian Bot</b>\n"
-    f"<b>━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-    f"• ✏️ Monitors and Deletes Unauthorized Edits\n"
-    f"• 🔐 Protects Group Integrity from Message Tampering\n"
-    f"• 👤 Owner-Only Sudo Control & Admin Commands\n"
-    f"• 📊 Real-Time Stats & Cloning Capabilities\n"
-    f"• 🚨 Fast, Lightweight & Always on Duty\n"
-    f"<b>━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-    f"<i>Use <code>/help</code> to view all available features & setup instructions.</i>"
-)
-
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("➕ Add to Group", url=f"https://t.me/{bot_me.username}?startgroup=true")],
-            [
-                InlineKeyboardButton("👑 Owner", url="https://t.me/FOS_FOUNDER"),
-                InlineKeyboardButton("💬 Support", url=SUPPORT_LINK),
-            ]
-        ])
-        try:
-            with open("C:/Users/Anirudh/Desktop/ichizen.mp4", "rb") as video_file:
-                await processing_msg.delete()
-                await update.message.reply_video(
-                    video=video_file,
-                    caption=welcome_text,
-                    parse_mode="HTML",
-                    reply_markup=kb
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+   
+    
+    if update.effective_chat.type == "private":
+        if len(args) >= 1:
+            if args[0].lower() == "help":
+                send_help(update.effective_chat.id, HELP_STRINGS)
+            elif args[0].lower().startswith("ghelp_"):
+                mod = args[0].lower().split("_", 1)[1]
+                if not HELPABLE.get(mod, False):
+                    return
+                send_help(
+                    update.effective_chat.id,
+                    HELPABLE[mod].__help__,
+                    InlineKeyboardMarkup(
+                        [[InlineKeyboardButton(text="Back", callback_data="help_back")]]
+                    ),
                 )
-        except Exception:
-            await processing_msg.edit_text(
-                welcome_text,
-                parse_mode="HTML",
-                reply_markup=kb
+
+            elif args[0].lower().startswith("stngs_"):
+                match = re.match("stngs_(.*)", args[0].lower())
+                chat = dispatcher.bot.getChat(match.group(1))
+
+                if is_user_admin(chat, update.effective_user.id):
+                    send_settings(match.group(1), update.effective_user.id, False)
+                else:
+                    send_settings(match.group(1), update.effective_user.id, True)
+
+            elif args[0][1:].isdigit() and "rules" in IMPORTED:
+                IMPORTED["rules"].send_rules(update, args[0], from_pm=True)
+
+        else:
+            first_name = update.effective_user.first_name
+            update.effective_message.reply_text(
+                PM_START_TEXT.format(escape_markdown(first_name), (PM_START_IMG), BOT_NAME),                              
+                reply_markup=InlineKeyboardMarkup(buttons),
+                parse_mode=ParseMode.MARKDOWN,
+                timeout=60,
             )
     else:
-        keyboard = [
-            [InlineKeyboardButton("🔔 Join Channel", url=f"https://t.me/{CHANNEL_USERNAME.lstrip('@')}")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            f"<b>Access Restricted</b>\n"
-            f"Hello {user.mention_html()},\n\n"
-            "To access the full features of this bot, please join our official channel first.\n"
-            "Once you have joined, use /start again.",
-            parse_mode="HTML",
-            reply_markup=reply_markup
+        update.effective_message.reply_photo(
+            PM_START_IMG,
+            reply_markup=InlineKeyboardMarkup(buttons),
+            caption="ɪ ᴀᴍ ᴀʟɪᴠᴇ ʙᴀʙʏ!\n<b>ᴜᴘᴛɪᴍᴇ :</b> <code>{}</code>".format(
+                uptime
+            ),
+            parse_mode=ParseMode.HTML,
         )
-
 
 def get_user_id(update: Update, context: CallbackContext):
     if len(context.args) != 1:
@@ -452,7 +391,7 @@ def main():
                 f"{SUPPORT_ID}",
                 photo=PM_START_IMG,               
                 caption=f"""
-𝗛𝗲𝗹𝗹𝗼 𝗜 𝗮𝗺 𝘀𝘁𝗮𝗿𝘁𝗲𝗱 𝘁𝗼 𝗺𝗮𝗻𝗮𝗴𝗲 𝗲𝗱𝗶𝘁𝗲𝗱 𝗺𝗲𝘀𝘀𝗮𝗴𝗲𝘀 ! 𝗜 𝗮𝗺 𝗖𝗿𝗲𝗮𝘁𝗲 𝗯𝘆 @FOS_FOUNDER""",
+𝗛𝗲𝗹𝗹𝗼 𝗜 𝗮𝗺 𝘀𝘁𝗮𝗿𝘁𝗲𝗱 𝘁𝗼 𝗺𝗮𝗻𝗮𝗴𝗲 𝗲𝗱𝗶𝘁𝗲𝗱 𝗺𝗲𝘀𝘀𝗮𝗴𝗲𝘀 ! 𝗜 𝗮𝗺 𝗖𝗿𝗲𝗮𝘁𝗲 𝗯𝘆 @nullcrow""",
                 parse_mode=ParseMode.MARKDOWN,
             )
         except Unauthorized:
@@ -479,3 +418,9 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # Start the bot
+
+
+
+
+      
