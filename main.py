@@ -70,6 +70,81 @@ def help(update: Update, context: CallbackContext):
     user = update.effective_user
     mention = f"<a href='tg://user?id={user.id}'>{user.first_name}</a>"
 
+SUPPORT_LINK = "https://t.me/+D2dATbDtZbNiNGJl"
+
+# --- Helper Functions ---
+async def get_target_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Get the target user by:
+    - Reply (preferred)
+    - User ID (digits)
+    - Username (@username or username)
+    """
+    chat_id = update.effective_chat.id
+    # 1. If reply, return that user
+    if update.message.reply_to_message and update.message.reply_to_message.from_user:
+        return update.message.reply_to_message.from_user
+
+    # 2. If argument is present, try to resolve as user_id or username
+    if context.args and context.args[0]:
+        arg = context.args[0]
+        # Try user ID
+        if arg.isdigit():
+            try:
+                member = await context.bot.get_chat_member(chat_id, int(arg))
+                return member.user
+            except Exception:
+                pass
+        # Try @username or username
+        username = arg
+        if username.startswith("@"):
+            username = username[1:]
+        # Try to get user from chat by username
+        try:
+            members = await context.bot.get_chat_administrators(chat_id)
+            for m in members:
+                if m.user.username and m.user.username.lower() == username.lower():
+                    return m.user
+        except Exception:
+            pass
+        try:
+            member = await context.bot.get_chat_member(chat_id, username)
+            return member.user
+        except Exception:
+            pass
+        # Try to get user from chat admins
+        try:
+            admins = await context.bot.get_chat_administrators(chat_id)
+            for m in admins:
+                if m.user.username and m.user.username.lower() == username.lower():
+                    return m.user
+        except Exception:
+            pass
+        # Try get_chat with @username and username
+        for uname in ("@" + username, username):
+            try:
+                user_obj = await context.bot.get_chat(uname)
+                if user_obj:
+                    return user_obj
+            except Exception:
+                continue
+        # Try get_chat_member with username (rarely works)
+        try:
+            member = await context.bot.get_chat_member(chat_id, username)
+            return member.user
+        except Exception:
+            pass
+
+    await update.message.reply_text(
+        "❌ <b>Couldn't find the user. Please reply or provide a valid user ID/username.</b>",
+        parse_mode="HTML"
+    )
+    return None
+
+def is_admin(member):
+    return isinstance(member, ChatMemberAdministrator) or isinstance(member, ChatMemberOwner)
+CHANNEL_USERNAME = "@federation_of_shadows"
+# --- Command Handlers ---
 async def is_user_in_channel(user_id, bot):
     try:
         member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
@@ -78,76 +153,99 @@ async def is_user_in_channel(user_id, bot):
         logging.error(f"Error checking channel membership: {e}")
         return False
 
-def start(update: Update, context: CallbackContext):
-    args = context.args
-    uptime = get_readable_time((time.time() - StartTime))
-
+async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    user_id = user.id
-    chat_id = update.effective_chat.id
+    try:
+        is_member = await is_user_in_channel(user.id, context.bot)
+    except Exception as e:
+        logging.error(f"start_handler: channel check failed: {e}")
+        is_member = True  # fallback: allow
 
-    # ✅ Channel restriction check (only in private chat)
-    if update.effective_chat.type == "private":
-        try:
-            # Check if user is in the channel
-            member = context.bot.get_chat_member(f"@{CHANNEL_USERNAME}", user_id)
-            if member.status in ("left", "kicked"):
-                raise Exception("Not a member")
-        except Exception:
-            keyboard = [
-                [InlineKeyboardButton("🔔 Join Channel", url=f"https://t.me/federation_of_shadows")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            update.message.reply_text(
-                f"<b>Access Restricted</b>\n"
-                f"Hello {mention_html(user_id, user.first_name)},\n\n"
-                "To access the full features of this bot, please join our official channel first.\n"
-                "Once you have joined, use /start again.",
-                parse_mode="HTML",
-                reply_markup=reply_markup
-            )
-            return
-
-        # ✅ Handle /start args (if any)
-        if len(args) >= 1:
-            if args[0].lower() == "help":
-                send_help(update.effective_chat.id, HELP_STRINGS)
-            elif args[0].lower().startswith("ghelp_"):
-                mod = args[0].lower().split("_", 1)[1]
-                if not HELPABLE.get(mod, False):
-                    return
-                send_help(
-                    update.effective_chat.id,
-                    HELPABLE[mod].__help__,
-                    InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(text="Back", callback_data="help_back")]]
-                    ),
-                )
-            elif args[0].lower().startswith("stngs_"):
-                match = re.match("stngs_(.*)", args[0].lower())
-                chat = dispatcher.bot.getChat(match.group(1))
-                if is_user_admin(chat, update.effective_user.id):
-                    send_settings(match.group(1), update.effective_user.id, False)
-                else:
-                    send_settings(match.group(1), update.effective_user.id, True)
-            elif args[0][1:].isdigit() and "rules" in IMPORTED:
-                IMPORTED["rules"].send_rules(update, args[0], from_pm=True)
-        else:
-            update.effective_message.reply_text(
-                PM_START_TEXT.format(escape_markdown(user.first_name), PM_START_IMG, BOT_NAME),
-                reply_markup=InlineKeyboardMarkup(buttons),
-                parse_mode=ParseMode.MARKDOWN,
-                timeout=60,
-            )
-
-    else:
-        # ✅ If it's a group
-        update.effective_message.reply_photo(
-            PM_START_IMG,
-            reply_markup=InlineKeyboardMarkup(buttons),
-            caption = f"{PM_START_TEXT}\n<b>ᴜᴘᴛɪᴍᴘ𝗲 :</b> <code>{uptime}</code>".format(uptime),
-            parse_mode=ParseMode.HTML,
+    if is_member:
+        bot_me = await context.bot.get_me()
+        processing_msg = await update.message.reply_text(
+            "<b>⏳ Please wait while we process your request...</b>\n"
+            "<i>Step 1: Initializing system modules...</i>",
+            parse_mode="HTML"
         )
+        await asyncio.sleep(0.8)
+        try:
+            await processing_msg.edit_text(
+                "<b>⏳ Please wait while we process your request...</b>\n"
+                "<i>Step 2: Verifying channel membership...</i>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+        await asyncio.sleep(0.8)
+        try:
+            await processing_msg.edit_text(
+                "<b>⏳ Please wait while we process your request...</b>\n"
+                "<i>Step 3: Preparing your personalized welcome...</i>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+        await asyncio.sleep(0.8)
+        try:
+            await processing_msg.edit_text(
+                "<b>⏳ Please wait while we process your request...</b>\n"
+                "<i>Step 4: Finalizing setup...</i>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+        await asyncio.sleep(0.6)
+        welcome_text = (
+    f"<b>👋 Welcome, {user.mention_html()}!</b>\n"
+    f"<b>━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
+    f"<b>🛡 {bot_me.mention_html()} — Edit Guardian Bot</b>\n"
+    f"<b>━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
+    f"• ✏️ Monitors and Deletes Unauthorized Edits\n"
+    f"• 🔐 Protects Group Integrity from Message Tampering\n"
+    f"• 👤 Owner-Only Sudo Control & Admin Commands\n"
+    f"• 📊 Real-Time Stats & Cloning Capabilities\n"
+    f"• 🚨 Fast, Lightweight & Always on Duty\n"
+    f"<b>━━━━━━━━━━━━━━━━━━━━━━━</b>\n"
+    f"<i>Use <code>/help</code> to view all available features & setup instructions.</i>"
+)
+
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("➕ Add to Group", url=f"https://t.me/{bot_me.username}?startgroup=true")],
+            [
+                InlineKeyboardButton("👑 Owner", url="https://t.me/FOS_FOUNDER"),
+                InlineKeyboardButton("💬 Support", url=SUPPORT_LINK),
+            ]
+        ])
+        try:
+            with open("C:/Users/Anirudh/Desktop/ichizen.mp4", "rb") as video_file:
+                await processing_msg.delete()
+                await update.message.reply_video(
+                    video=video_file,
+                    caption=welcome_text,
+                    parse_mode="HTML",
+                    reply_markup=kb
+                )
+        except Exception:
+            await processing_msg.edit_text(
+                welcome_text,
+                parse_mode="HTML",
+                reply_markup=kb
+            )
+    else:
+        keyboard = [
+            [InlineKeyboardButton("🔔 Join Channel", url=f"https://t.me/{CHANNEL_USERNAME.lstrip('@')}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            f"<b>Access Restricted</b>\n"
+            f"Hello {user.mention_html()},\n\n"
+            "To access the full features of this bot, please join our official channel first.\n"
+            "Once you have joined, use /start again.",
+            parse_mode="HTML",
+            reply_markup=reply_markup
+        )
+
 
 def get_user_id(update: Update, context: CallbackContext):
     if len(context.args) != 1:
