@@ -70,7 +70,7 @@ def help(update: Update, context: CallbackContext):
     user = update.effective_user
     mention = f"<a href='tg://user?id={user.id}'>{user.first_name}</a>"
 
-def is_user_in_channel(user_id, bot):
+async def is_user_in_channel(user_id, bot):
     try:
         member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
         return member.status in ("member", "administrator", "creator")
