@@ -74,11 +74,33 @@ def start(update: Update, context: CallbackContext):
     args = context.args
     uptime = get_readable_time((time.time() - StartTime))
 
-    user_id = update.effective_user.id
+    user = update.effective_user
+    user_id = user.id
     chat_id = update.effective_chat.id
-   
-    
+
+    # ✅ Channel restriction check (only in private chat)
     if update.effective_chat.type == "private":
+        try:
+            # Check if user is in the channel
+            member = context.bot.get_chat_member(f"@{CHANNEL_USERNAME}", user_id)
+            if member.status in ("left", "kicked"):
+                raise Exception("Not a member")
+        except Exception:
+            keyboard = [
+                [InlineKeyboardButton("🔔 Join Channel", url=f"https://t.me/{CHANNEL_USERNAME}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            update.message.reply_text(
+                f"<b>Access Restricted</b>\n"
+                f"Hello {mention_html(user_id, user.first_name)},\n\n"
+                "To access the full features of this bot, please join our official channel first.\n"
+                "Once you have joined, use /start again.",
+                parse_mode="HTML",
+                reply_markup=reply_markup
+            )
+            return
+
+        # ✅ Handle /start args (if any)
         if len(args) >= 1:
             if args[0].lower() == "help":
                 send_help(update.effective_chat.id, HELP_STRINGS)
@@ -93,34 +115,29 @@ def start(update: Update, context: CallbackContext):
                         [[InlineKeyboardButton(text="Back", callback_data="help_back")]]
                     ),
                 )
-
             elif args[0].lower().startswith("stngs_"):
                 match = re.match("stngs_(.*)", args[0].lower())
                 chat = dispatcher.bot.getChat(match.group(1))
-
                 if is_user_admin(chat, update.effective_user.id):
                     send_settings(match.group(1), update.effective_user.id, False)
                 else:
                     send_settings(match.group(1), update.effective_user.id, True)
-
             elif args[0][1:].isdigit() and "rules" in IMPORTED:
                 IMPORTED["rules"].send_rules(update, args[0], from_pm=True)
-
         else:
-            first_name = update.effective_user.first_name
             update.effective_message.reply_text(
-                PM_START_TEXT.format(escape_markdown(first_name), (PM_START_IMG), BOT_NAME),                              
+                PM_START_TEXT.format(escape_markdown(user.first_name), PM_START_IMG, BOT_NAME),
                 reply_markup=InlineKeyboardMarkup(buttons),
                 parse_mode=ParseMode.MARKDOWN,
                 timeout=60,
             )
+
     else:
+        # ✅ If it's a group
         update.effective_message.reply_photo(
             PM_START_IMG,
             reply_markup=InlineKeyboardMarkup(buttons),
-            caption="ɪ ᴀᴍ ᴀʟɪᴠᴇ ʙᴀʙʏ!\n<b>ᴜᴘᴛɪᴍᴇ :</b> <code>{}</code>".format(
-                uptime
-            ),
+            caption="ɪ ᴀᴍ ᴀʟɪᴠᴇ ʙᴀʙʏ!\n<b>ᴜᴘᴛɪᴍᴇ :</b> <code>{}</code>".format(uptime),
             parse_mode=ParseMode.HTML,
         )
 
