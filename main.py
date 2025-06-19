@@ -137,7 +137,7 @@ def start(update: Update, context: CallbackContext):
         update.effective_message.reply_photo(
             PM_START_IMG,
             reply_markup=InlineKeyboardMarkup(buttons),
-            caption="ɪ ᴀᴍ ᴀʟɪᴠᴇ ʙᴀʙʏ!\n<b>ᴜᴘᴛɪᴍᴇ :</b> <code>{}</code>".format(uptime),
+            caption= PM_START_TEXT \"n<b>ᴜᴘᴛɪᴍᴇ :</b> <code>{}</code>".format(uptime),
             parse_mode=ParseMode.HTML,
         )
 
