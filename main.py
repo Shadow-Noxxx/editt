@@ -87,7 +87,7 @@ def start(update: Update, context: CallbackContext):
                 raise Exception("Not a member")
         except Exception:
             keyboard = [
-                [InlineKeyboardButton("🔔 Join Channel", url=f"https://t.me/{CHANNEL_USERNAME}")]
+                [InlineKeyboardButton("🔔 Join Channel", url=f"https://t.me/{federation_of_shadows}")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             update.message.reply_text(
