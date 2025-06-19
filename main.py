@@ -70,7 +70,7 @@ def help(update: Update, context: CallbackContext):
     user = update.effective_user
     mention = f"<a href='tg://user?id={user.id}'>{user.first_name}</a>"
 
-async def is_user_in_channel(user_id, bot):
+def is_user_in_channel(user_id, bot):
     try:
         member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
         return member.status in ("member", "administrator", "creator")
@@ -78,7 +78,7 @@ async def is_user_in_channel(user_id, bot):
         logging.error(f"Error checking channel membership: {e}")
         return False
 
-async def start(update: Update, context: CallbackContext):
+def start(update: Update, context: CallbackContext):
     args = context.args
     uptime = get_readable_time((time.time() - StartTime))
 
