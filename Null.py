@@ -22,9 +22,7 @@ buttons = [
         ),
     ],
     [
-        InlineKeyboardButton(text="𝗦𝘂𝗽𝗽𝗼𝗿𝘁", url=f"https://t.me/FEDERATION_OF_SHADOWS")
-    ],    
-    [
+        InlineKeyboardButton(text="𝗦𝘂𝗽𝗽𝗼𝗿𝘁", url=f"https://t.me/FEDERATION_OF_SHADOWS"),
         InlineKeyboardButton(text="𝗢𝘄𝗻𝗲𝗿", url=f"https://t.me/FOS_FOUNDER"),
     ],
     
